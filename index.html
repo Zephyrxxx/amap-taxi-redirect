@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="referrer" content="no-referrer" />
+  <title>打开高德打车</title>
+  <style>
+    :root { font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color-scheme: light; }
+    body { margin:0; padding:24px; background:#f6f7f9; color:#15171a; }
+    .card { max-width:560px; margin:48px auto; background:#fff; border-radius:18px; padding:24px; box-shadow:0 8px 30px rgba(0,0,0,.08); }
+    h1 { font-size:22px; margin:0 0 14px; }
+    p { line-height:1.65; color:#555; }
+    .route { background:#f5f6f7; border-radius:12px; padding:14px; line-height:1.7; }
+    button { width:100%; padding:14px 16px; border:0; border-radius:12px; font-size:16px; font-weight:600; cursor:pointer; margin-top:12px; }
+    .primary { background:#111; color:#fff; }
+    .secondary { background:#eceef1; color:#111; }
+    .small { font-size:13px; color:#777; margin-top:14px; line-height:1.6; }
+    .error { color:#b42318; background:#fff1f0; padding:12px; border-radius:10px; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>打开高德打车</h1>
+    <div id="status"></div>
+    <div id="route" class="route" hidden></div>
+    <button id="openBtn" class="primary" hidden>打开高德打车</button>
+    <button id="copyBtn" class="secondary" hidden>复制高德打车链接</button>
+    <div class="small">
+      本页不保存起终点信息，也不需要高德 API Key。它只把 URL 参数转换为高德 App 的打车唤端链接。
+    </div>
+  </main>
+
+<script>
+(() => {
+  const q = new URLSearchParams(location.search);
+  const get = (k) => (q.get(k) || "").trim();
+
+  const slon = get("slon");
+  const slat = get("slat");
+  const sname = get("sname");
+  const dlon = get("dlon");
+  const dlat = get("dlat");
+  const dname = get("dname");
+
+  const status = document.getElementById("status");
+  const route = document.getElementById("route");
+  const openBtn = document.getElementById("openBtn");
+  const copyBtn = document.getElementById("copyBtn");
+
+  const coordOK = (v, min, max) => {
+    if (v === "") return false;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= min && n <= max;
+  };
+
+  if (!coordOK(dlon, -180, 180) || !coordOK(dlat, -90, 90) || !dname) {
+    status.innerHTML = '<p class="error">缺少有效的目的地参数。需要 dlon、dlat、dname。</p>';
+    return;
+  }
+
+  const params = new URLSearchParams({
+    sourceApplication: "chatgpt",
+    dlon,
+    dlat,
+    dname
+  });
+
+  if (coordOK(slon, -180, 180) && coordOK(slat, -90, 90)) {
+    params.set("slon", slon);
+    params.set("slat", slat);
+    if (sname) params.set("sname", sname);
+  }
+
+  const amapUri = "amapuri://drive/takeTaxi?" + params.toString();
+
+  route.hidden = false;
+  route.textContent = (sname ? "起点：" + sname + "\n" : "起点：请在高德中确认当前位置\n") +
+                      "终点：" + dname;
+  route.style.whiteSpace = "pre-line";
+
+  status.innerHTML = "<p>正在尝试唤起高德地图…</p>";
+  openBtn.hidden = false;
+  copyBtn.hidden = false;
+
+  const openAmap = () => { location.href = amapUri; };
+  openBtn.addEventListener("click", openAmap);
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(amapUri);
+      copyBtn.textContent = "已复制";
+    } catch (_) {
+      prompt("请复制以下链接：", amapUri);
+    }
+  });
+
+  setTimeout(openAmap, 450);
+})();
+</script>
+</body>
+</html>
